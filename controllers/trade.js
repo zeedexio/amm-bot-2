@@ -1,44 +1,15 @@
 const axios = require("axios");
 
-const getToken = require("../Utils/getToken");
-const signOrder = require("../Utils/signOrder");
+const getAuthToken = require("../utils/auth");
+const signOrder = require("../utils/auth/signOrder");
 
-const URL_BUILD = "https://test-api.zeedex.io/orders/build";
-const URL_PLACE = "https://test-api.zeedex.io/orders";
-const URL_TICKER = "https://test-api.zeedex.io/tickers/";
-
-module.exports = async (
-  privKey,
-  amount,
-  side,
-  orderType,
-  marketId,
-  limitOrders
-) => {
+module.exports = async (privKey, price, amount, side, orderType, marketId) => {
   return new Promise(async (resolve, reject) => {
-    let price;
-
-    if (orderType === "market") {
-      price = 0;
-    } else {
-      const resultTicker = await axios.get(`${URL_TICKER}${marketId}`);
-      // if (side === "sell") {
-      //   price =
-      //     parseFloat(resultTicker.data.data.ticker.bid) +
-      //     parseFloat(resultTicker.data.data.ticker.bid) * 0.05;
-      // } else if (side === "buy") {
-      //   price =
-      //     parseFloat(resultTicker.data.data.ticker.ask) -
-      //     parseFloat(resultTicker.data.data.ticker.ask) * 0.05;
-      // }
-      price = 0.021;
-    }
-
-    price = price.toFixed(6);
+    const token = await getAuthToken("0x" + privKey);
 
     try {
       const resultBuild = await axios.post(
-        URL_BUILD,
+        `${process.env.DEX_API_URL}/orders/build`,
         {
           amount,
           price,
@@ -48,7 +19,7 @@ module.exports = async (
         },
         {
           headers: {
-            "Zeedex-Authentication": await getToken("0x" + privKey),
+            "Zeedex-Authentication": token,
           },
         }
       );
@@ -59,33 +30,28 @@ module.exports = async (
       }
 
       const orderId = resultBuild.data.data.order.id;
-      console.log("orderId = ", orderId);
-
-      if (orderType === "limit") {
-        limitOrders.push({
-          privKey,
-          orderId,
-          amount,
-          price,
-          side,
-          orderType,
-          marketId,
-          time: Date.now(),
-        });
-      }
+      // console.log("orderId = ", orderId);
 
       const signature = await signOrder("0x" + privKey, orderId);
-      console.log("signature = ", signature);
+      // console.log("signature = ", signature);
 
+      // let message = "ZEEDEX-AUTHENTICATION" + Date.now();
+      // let token = getAuthToken("0x" + privKey);
+      // let tokens = (await token).split("#");
+      // tokens[1] = message;
+      // let finalToken = tokens[0] + "#" + tokens[1] + "#" + tokens[2];
+      // console.log(finalToken);
+
+      // console.log(finalToken);
       const resultPlace = await axios.post(
-        URL_PLACE,
+        `${process.env.DEX_API_URL}/orders`,
         {
           orderId,
           signature,
         },
         {
           headers: {
-            "Zeedex-Authentication": getToken("0x" + privKey),
+            "Zeedex-Authentication": token,
           },
         }
       );

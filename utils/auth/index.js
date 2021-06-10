@@ -7,7 +7,7 @@ const {
 } = require("ethereumjs-util");
 
 async function getAuthToken(_privKey) {
-  let message = "ZEEDEX-AUTHENTICATION@" + Date.now();
+  let message = "ZEEDEX-AUTHENTICATION" + Date.now();
 
   if (message.slice(0, 2) !== "0x") {
     message = "0x" + Buffer.from(message).toString("hex");
@@ -23,7 +23,7 @@ async function getAuthToken(_privKey) {
     ecdsaSignature.s
   );
   const final = address + "#" + message + "#" + signature;
-  // console.log(final);
+  console.log(final);
   return final;
 }
 

@@ -3,6 +3,7 @@ const { getLatestPrice, getUSDPrice } = require("../utils/price")(
   process.env.PRICE_PROVIDER
 );
 const { getTokenBalances } = require("../utils/balance");
+const trade = require("./trade");
 
 var ladder;
 var baseBalance;
@@ -112,6 +113,7 @@ const generateLadder = (centerPrice) => {
 };
 
 exports.initOrderbook = async () => {
+  const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
   // Get Base + Quote Token Balance
   const balances = await getTokenBalances();
   baseBalance = balances.base;
@@ -124,7 +126,50 @@ exports.initOrderbook = async () => {
   ladder = generateLadder(centerPrice);
   console.log(ladder);
 
+  // try {
+  //   await trade(
+  //     process.env.PRIVATE_KEY,
+  //     asks[0].price.toFixed(5),
+  //     asks[0].amount.toFixed(5).toString(),
+  //     "sell",
+  //     "limit",
+  //     marketID
+  //   );
+  // } catch (err) {
+  //   console.log(err);
+  // }
+
   // Create Sell Orders
+  const asks = ladder.asks;
+  for (i = 0; i < asks.length; i++) {
+    try {
+      await trade(
+        process.env.PRIVATE_KEY,
+        asks[i].price.toFixed(5),
+        asks[i].amount.toFixed(5),
+        "sell",
+        "limit",
+        marketID
+      );
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
   // Create Buy Orders
+  const bids = ladder.bids;
+  for (i = 0; i < bids.length; i++) {
+    try {
+      await trade(
+        process.env.PRIVATE_KEY,
+        bids[i].price.toFixed(5),
+        bids[i].amount.toFixed(5),
+        "buy",
+        "limit",
+        marketID
+      );
+    } catch (err) {
+      console.log(err);
+    }
+  }
 };
