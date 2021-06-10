@@ -1,32 +1,43 @@
 const axios = require("axios");
 const getAuthToken = require("../utils/auth");
+const { sleep } = require("../utils/misc/sleep");
 
 const getPendingOrders = async (marketID) => {
-  var pendingOrders;
+  var pendingOrders = [];
+  var pageNum = 0;
 
-  try {
-    let req = await axios({
-      method: "GET",
-      url: `${process.env.DEX_API_URL}/orders?marketID=${marketID}`,
-      timeout: 20000,
+  while (true) {
+    try {
+      let req = await axios({
+        method: "GET",
+        url: `${process.env.DEX_API_URL}/orders?marketID=${marketID}&perPage=100&status=pending&page=${pageNum}`,
+        timeout: 20000,
+        headers: {
+          "Zeedex-Authentication": await getAuthToken(
+            "0x" + process.env.PRIVATE_KEY
+          ),
+        },
+      });
+      // console.log(res)
+      // return res;
 
-      headers: {
-        "Zeedex-Authentication": await getAuthToken(
-          "0x" + process.env.PRIVATE_KEY
-        ),
-      },
-    });
-    // console.log(res)
-    // return res;
+      const res = req.data;
+      if (res && res.desc == "success") {
+        //  pendingOrders = res.data.orders;
+        // pendingOrders.push(res.data.orders);
+        pendingOrders = pendingOrders.concat(res.data.orders);
+      } else {
+        throw "Error Fetching Pending Orders";
+      }
 
-    const res = req.data;
-    if (res && res.status == 0) {
-      pendingOrders = res.data.orders;
+      if (pendingOrders.length >= res.data.count) {
+        break;
+      } else {
+        pageNum = pageNum + 1;
+      }
+    } catch (error) {
+      throw error;
     }
-  } catch (error) {
-    console.log("timeout:", error.message);
-    // return { status: 404 };
-    throw error;
   }
 
   return pendingOrders;
@@ -49,7 +60,7 @@ const cancelOrder = async (orderID) => {
     // console.log(ret)
     return ret.data;
   } catch (error) {
-    console.log("Get fiat price timeout:", error.message);
+    console.log("Cancel Order Errored : ", error.message);
     return { status: 404 };
   }
 };
@@ -59,7 +70,6 @@ exports.CancelAllPendingOrders = async () => {
   const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
 
   const pendingOrders = await getPendingOrders(marketID);
-  // console.log(pendingOrders);
 
   console.log(
     `Found ${pendingOrders ? pendingOrders.length : 0} Pending Orders`
@@ -70,7 +80,8 @@ exports.CancelAllPendingOrders = async () => {
       const deleteThis = await cancelOrder(pendingOrders[i].id);
 
       if (deleteThis.status === 0) {
-        console.log("Deleted Order - ", pendingOrders[i].id);
+        // console.log("Deleted Order - ", pendingOrders[i].id);
+        console.log("Deleted Order # - ", i);
       } else {
         console.log("Some problem in deleting Order ", pendingOrders[i].id);
       }

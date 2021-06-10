@@ -23,7 +23,7 @@ async function getAuthToken(_privKey) {
     ecdsaSignature.s
   );
   const final = address + "#" + message + "#" + signature;
-  console.log(final);
+  // console.log(final);
   return final;
 }
 

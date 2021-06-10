@@ -35,14 +35,6 @@ module.exports = async (privKey, price, amount, side, orderType, marketId) => {
       const signature = await signOrder("0x" + privKey, orderId);
       // console.log("signature = ", signature);
 
-      // let message = "ZEEDEX-AUTHENTICATION" + Date.now();
-      // let token = getAuthToken("0x" + privKey);
-      // let tokens = (await token).split("#");
-      // tokens[1] = message;
-      // let finalToken = tokens[0] + "#" + tokens[1] + "#" + tokens[2];
-      // console.log(finalToken);
-
-      // console.log(finalToken);
       const resultPlace = await axios.post(
         `${process.env.DEX_API_URL}/orders`,
         {
