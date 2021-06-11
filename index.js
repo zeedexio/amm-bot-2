@@ -15,6 +15,7 @@ const stopSpotBot = async (sig) => {
     await spot.exit(function () {
       console.log("Received %s - terminating bot ...", sig);
       process.exit(1);
+      process.exit(0);
     });
   }
   console.log("Process stopped, signal: " + sig + "\n");

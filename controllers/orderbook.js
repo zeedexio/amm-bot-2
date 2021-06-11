@@ -4,6 +4,7 @@ const { getLatestPrice, getUSDPrice } = require("../utils/price")(
 );
 const { getTokenBalances } = require("../utils/balance");
 const trade = require("./trade");
+const { getMarketData } = require("./market");
 
 var ladder;
 var baseBalance;
@@ -11,6 +12,7 @@ var quoteBalance;
 var availableBaseBalance;
 var availableQuoteBalance;
 var midPrice;
+var marketData;
 const step = process.env.ORDER_STEP;
 const orderBookLength = process.env.MAX_ORDERBOOK_LENGTH;
 const expandInventory = process.env.EXPAND_INVENTORY;
@@ -68,10 +70,7 @@ const generatePriceLadder = (centerPrice, side) => {
 const generateLadder = (centerPrice) => {
   /* ---------------------------- Generate Sell Side --------------------------- */
   let askAmountArray = generateAmountLadder(baseBalance).reverse();
-  // console.log(askAmountArray);
-
   let askPriceArray = generatePriceLadder(centerPrice, "SELL").reverse();
-  //   console.log(askPriceArray);
 
   let askArray = [];
   for (let i = 0; i < orderBookLength; i++) {
@@ -79,7 +78,6 @@ const generateLadder = (centerPrice) => {
       price: askPriceArray[i],
       amount: askAmountArray[i],
     };
-    // console.log(ask.price, ask.amount);
     askArray[i] = ask;
   }
   // console.table(askArray);
@@ -90,10 +88,7 @@ const generateLadder = (centerPrice) => {
 
   /* --------------------------- Generate Buy Side --------------------------- */
   let bidAmountArray = generateAmountLadder(quoteBalance);
-  //   console.log(bidAmountArray);
-
   let bidPriceArray = generatePriceLadder(centerPrice, "BUY");
-  //   console.log(bidPriceArray);
 
   let bidArray = [];
   for (let i = 0; i < orderBookLength; i++) {
@@ -101,7 +96,6 @@ const generateLadder = (centerPrice) => {
       price: bidPriceArray[i],
       amount: bidAmountArray[i] / bidPriceArray[i],
     };
-    //  console.log(bid.price, bid.amount);
     bidArray[i] = bid;
   }
   // console.table(bidArray);
@@ -114,6 +108,10 @@ const generateLadder = (centerPrice) => {
 
 exports.initOrderbook = async () => {
   const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
+
+  //get Market Data - Precisions
+  marketData = await getMarketData();
+
   // Get Base + Quote Token Balance
   const balances = await getTokenBalances();
   baseBalance = balances.base;
@@ -121,55 +119,55 @@ exports.initOrderbook = async () => {
 
   // get remote price
   let centerPrice = new BigNumber(await getLatestPrice());
+  if (!centerPrice) return;
   midPrice = centerPrice;
 
   ladder = generateLadder(centerPrice);
   console.log(ladder);
 
-  // try {
-  //   await trade(
-  //     process.env.PRIVATE_KEY,
-  //     asks[0].price.toFixed(5),
-  //     asks[0].amount.toFixed(5).toString(),
-  //     "sell",
-  //     "limit",
-  //     marketID
-  //   );
-  // } catch (err) {
-  //   console.log(err);
-  // }
-
   // Create Sell Orders
   const asks = ladder.asks;
   for (i = 0; i < asks.length; i++) {
+    let currentPrice = asks[i].price.toFixed(marketData.priceDecimals);
+    let currentAmount = asks[i].amount.toFixed(marketData.amountDecimals);
+
     try {
+      process.stdout.write(
+        `Sell | Price : ${currentPrice} | Amount : ${currentAmount} | Status : `
+      );
       await trade(
         process.env.PRIVATE_KEY,
-        asks[i].price.toFixed(5),
-        asks[i].amount.toFixed(5),
+        currentPrice,
+        currentAmount,
         "sell",
         "limit",
         marketID
       );
-    } catch (err) {
-      console.log(err);
+    } catch (msg) {
+      console.log(msg);
     }
   }
 
   // Create Buy Orders
   const bids = ladder.bids;
   for (i = 0; i < bids.length; i++) {
+    let currentPrice = bids[i].price.toFixed(marketData.priceDecimals);
+    let currentAmount = bids[i].amount.toFixed(marketData.amountDecimals);
+
     try {
+      process.stdout.write(
+        `Buy | Price : ${currentPrice} | Amount : ${currentAmount} | Status : `
+      );
       await trade(
         process.env.PRIVATE_KEY,
-        bids[i].price.toFixed(5),
-        bids[i].amount.toFixed(5),
+        currentPrice,
+        currentAmount,
         "buy",
         "limit",
         marketID
       );
-    } catch (err) {
-      console.log(err);
+    } catch (msg) {
+      console.log(msg);
     }
   }
 };
