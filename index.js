@@ -38,7 +38,7 @@ if (envErrors) {
 ["SIGINT", "SIGTERM", "SIGQUIT"].forEach(function (sig) {
   process.on(sig, function () {
     console.log("\nClearing Console...");
-    process.stdout.write("\033c");
+    // process.stdout.write("\033c");
     console.log("Exiting...");
     stopSpotBot(sig);
   });

@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { sleep } = require("../misc/sleep");
 
 exports.getEnvErrors = () => {

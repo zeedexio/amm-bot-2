@@ -1,3 +1,4 @@
+require("dotenv").config();
 // const axios = require('axios')
 // const TomoX = require('tomoxjs')
 // const BigNumber = require('bignumber.js')
