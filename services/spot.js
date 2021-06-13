@@ -24,7 +24,9 @@ exports.init = async () => {
 
 const runMaintainer = async () => {
   await sleep(Number(process.env.SPEED));
+
   await maintainOrderbook();
+
   runMaintainer();
 };
 

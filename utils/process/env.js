@@ -50,10 +50,10 @@ exports.getEnvErrors = () => {
     return { error: "MAX_ORDERBOOK_LENGTH Required" };
   }
   if (
-    Number(process.env.MAX_ORDERBOOK_LENGTH) > 100 ||
+    Number(process.env.MAX_ORDERBOOK_LENGTH) > 50 ||
     Number(process.env.MAX_ORDERBOOK_LENGTH) < 1
   ) {
-    return { error: "MAX_ORDERBOOK_LENGTH Invalid, must be between 100 and 1" };
+    return { error: "MAX_ORDERBOOK_LENGTH Invalid, must be between 50 and 1" };
   }
 
   if (!process.env.RPC_URL) {
@@ -65,7 +65,7 @@ exports.getEnvErrors = () => {
   if (!process.env.SPEED) {
     return { error: "SPEED Required" };
   }
-  if (Number(process.env.SPEED) < 5000) {
-    return { error: "SPEED Invalid, must be above 5000 ms" };
+  if (Number(process.env.SPEED) < 10000) {
+    return { error: "SPEED Invalid, must be above 10000 ms" };
   }
 };

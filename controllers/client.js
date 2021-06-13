@@ -2,8 +2,10 @@ require("dotenv").config();
 const axios = require("axios");
 const getAuthToken = require("../utils/auth");
 const { sleep } = require("../utils/misc/sleep");
+const trade = require("./trade");
+const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
 
-const getPendingOrders = async (marketID) => {
+const getPendingOrders = async () => {
   var pendingOrders = [];
   var pageNum = 0;
 
@@ -68,9 +70,8 @@ exports.cancelOrder = async (orderID) => {
 
 exports.CancelAllPendingOrders = async () => {
   console.log("Going to Cancel All Pending Orders");
-  const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
 
-  const pendingOrders = await getPendingOrders(marketID);
+  const pendingOrders = await getPendingOrders();
 
   console.log(
     `Found ${pendingOrders ? pendingOrders.length : 0} Pending Orders`
@@ -94,8 +95,6 @@ exports.CancelAllPendingOrders = async () => {
 };
 
 exports.getMarketData = async () => {
-  const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
-
   try {
     let req = await axios({
       method: "GET",
@@ -116,8 +115,6 @@ exports.getMarketData = async () => {
     return { status: 404 };
   }
 };
-
-/* ----------------------------- Maintain Orders ---------------------------- */
 
 exports.getOrder = async (orderID) => {
   try {
