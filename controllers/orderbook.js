@@ -2,6 +2,7 @@ require("dotenv").config();
 const BigNumber = require("bignumber.js");
 const { getTokenBalances } = require("../utils/balance");
 const { sleep } = require("../utils/misc/sleep");
+const { logPrint } = require("../utils/misc/log");
 const { getLatestPrice, getUSDPrice } = require("../utils/price")(
   process.env.PRICE_PROVIDER
 );
@@ -100,17 +101,13 @@ const generateAmountLadder = (balance) => {
     xs[i] = value;
     amount = value;
   }
-  // console.log(xs);
 
   var total = new BigNumber(0);
   xs.forEach((x) => (total = total.plus(x)));
-  // console.log(total);
 
   var scale = new BigNumber(balance).dividedBy(total);
 
   var result = xs.map((x) => new BigNumber(x).multipliedBy(scale));
-  // console.log(result);
-  // return result;
 
   const newResult = result.map((r) => r.toNumber());
   return newResult;
@@ -129,9 +126,6 @@ const generatePriceLadder = (remotePrice, side) => {
     price = thisPrice;
   }
 
-  //   console.log(xs);
-  //   return xs
-
   const newResult = xs.map((r) => r.toNumber());
   return newResult;
 };
@@ -149,15 +143,14 @@ const generateLadder = (remotePrice) => {
     };
     askArray[i] = ask;
   }
-  // console.table(askArray);
-
-  console.log(
-    "================ " + remotePrice.toNumber() + " ================"
-  );
 
   /* --------------------------- Generate Buy Side --------------------------- */
   let bidAmountArray = generateAmountLadder(quoteBalance);
-  let bidPriceArray = generatePriceLadder(remotePrice, "BUY");
+  // let bidPriceArray = generatePriceLadder(remotePrice, "BUY");
+  let bidPriceArray = generatePriceLadder(
+    new BigNumber(askPriceArray[askPriceArray.length - 1]),
+    "BUY"
+  );
 
   let bidArray = [];
   for (let i = 0; i < orderBookLength; i++) {
@@ -191,7 +184,11 @@ exports.initOrderbook = async () => {
   midPrice = remotePrice;
 
   ladder = generateLadder(remotePrice);
-  console.log(ladder);
+  console.table(ladder.asks);
+  console.log(
+    "================ " + remotePrice.toNumber() + " ================"
+  );
+  console.table(ladder.bids);
 
   // Create Sell Orders
   const asks = ladder.asks;
@@ -215,52 +212,42 @@ exports.initOrderbook = async () => {
 /* -------------------------------- Maintain -------------------------------- */
 
 exports.maintainOrderbook = async () => {
-  console.log("Looping");
-
-  // check global price
-  // (global - mid) / global * 100 > 10%
-  let remotePrice = new BigNumber(await getLatestPrice());
-  // let remotePrice = new BigNumber(0.053);
-
-  let percentChange = new BigNumber(
-    remotePrice.minus(midPrice).dividedBy(remotePrice).multipliedBy(100)
-  ).abs();
-
-  // console.log(remotePrice.toNumber());
-  // console.log(midPrice.toNumber());
-
-  // console.log(percentChange.toNumber(), " %");
+  console.log("Maintenance Running");
+  await rebuildOrders();
 
   if (
-    !remotePrice ||
-    percentChange.isLessThan(process.env.MAX_ARBITRAGE * 100) ||
-    process.env.PRICE_PROVIDER === "pool"
+    process.env.MAINTAIN_ARBITRAGE == "true" &&
+    process.env.PRICE_PROVIDER !== "pool"
   ) {
-    console.log("Will Rebuild Orderbook");
-    //  - NO
-    //       -rebuild orders
+    logPrint("Lets Check Arbitrage Value...");
+    let remotePrice = new BigNumber(await getLatestPrice());
+    // let remotePrice = new BigNumber(0.053);
 
-    await rebuildOrders();
-  } else {
-    console.log("Will Shift Orderbook");
-    //  -- YES
+    if (!remotePrice) return;
 
-    if (remotePrice.isGreaterThan(midPrice)) {
-      //  --    -- global > midPrice  = Shift Up
-      console.log("Want to Shift Up the price");
-      await shiftUp(remotePrice);
+    let percentChange = new BigNumber(
+      remotePrice.minus(midPrice).dividedBy(remotePrice).multipliedBy(100)
+    ).abs();
+
+    console.log(`${percentChange.toNumber().toFixed(2)} % Arbitrage Available`);
+
+    if (percentChange.isGreaterThan(Number(process.env.MAX_ARBITRAGE) * 100)) {
+      console.log("Will Shift Orderbook to Global Price...");
+
+      if (remotePrice.isGreaterThan(midPrice)) {
+        logPrint("Want to Shift Up the price");
+        await shiftUp(remotePrice);
+      } else {
+        logPrint("Want to Shift Down the price");
+        await shiftDown(remotePrice);
+      }
     } else {
-      //  --    -- global < midPrice  = Shift Down
-      console.log("Want to Shift Down the price");
-      await shiftDown(remotePrice);
+      console.log("No Shifting Needed...");
     }
   }
-
-  console.log("----------------");
 };
 
 const rebuildOrders = async () => {
-  // console.log(openOrders);
   let asks = openOrders.asks;
   let bids = openOrders.bids;
 
@@ -356,7 +343,7 @@ const shiftUp = async (remotePrice) => {
     );
 
     if (topBidPrice.isGreaterThan(remotePrice)) {
-      console.log("Shift Up Break...");
+      logPrint("Shift Up Break...");
       break;
     } else {
       // Cancel Last -> Create on Top
@@ -396,8 +383,6 @@ const shiftUp = async (remotePrice) => {
         .sort((a, b) => Number(b.price) - Number(a.price));
     }
 
-    console.log({ asks });
-    console.log({ bids });
     // finally save it
     openOrders = {
       asks: asks,
@@ -458,8 +443,6 @@ const shiftDown = async (remotePrice) => {
         .sort((a, b) => Number(b.price) - Number(a.price));
     }
 
-    // console.log({ asks });
-    // console.log({ bids });
     // finally save it
     openOrders = {
       asks: asks,

@@ -5,7 +5,7 @@ var gPrice;
 var gUSDPrice;
 
 const httpClient = axios.create();
-httpClient.defaults.timeout = 2500;
+httpClient.defaults.timeout = 5000;
 
 const getLatestPrice = async () => {
   try {
@@ -26,7 +26,6 @@ const getLatestPrice = async () => {
       const response = await axios.get(
         `https://api.coingecko.com/api/v3/simple/price?ids=${baseName},${quoteName}&vs_currencies=usd`
       );
-      // console.log(response.data);
       gPrice = (1 / response.data[quoteName].usd) * response.data[baseName].usd;
     }
   } catch (err) {

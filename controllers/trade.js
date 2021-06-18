@@ -39,10 +39,8 @@ module.exports = async (
       }
 
       const orderId = resultBuild.data.data.order.id;
-      // console.log("orderId = ", orderId);
 
       const signature = await signOrder("0x" + privKey, orderId);
-      // console.log("signature = ", signature);
 
       const resultPlace = await axios.post(
         `${process.env.DEX_API_URL}/orders`,

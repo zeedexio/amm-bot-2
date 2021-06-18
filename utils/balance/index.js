@@ -27,7 +27,6 @@ exports.getTokenBalances = async () => {
     .balanceOf(web3Account.address)
     .call()
     .then(function (bal) {
-      // console.log(bal);
       return bal;
     })
     .catch((err) => {
@@ -47,7 +46,6 @@ exports.getTokenBalances = async () => {
     .balanceOf(web3Account.address)
     .call()
     .then(function (bal) {
-      // console.log(bal);
       return bal;
     })
     .catch((err) => {

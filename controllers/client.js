@@ -2,6 +2,7 @@ require("dotenv").config();
 const axios = require("axios");
 const getAuthToken = require("../utils/auth");
 const { sleep } = require("../utils/misc/sleep");
+const { logPrint } = require("../utils/misc/log");
 const trade = require("./trade");
 const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
 
@@ -21,13 +22,9 @@ const getPendingOrders = async () => {
           ),
         },
       });
-      // console.log(res)
-      // return res;
 
       const res = req.data;
       if (res && res.desc == "success") {
-        //  pendingOrders = res.data.orders;
-        // pendingOrders.push(res.data.orders);
         pendingOrders = pendingOrders.concat(res.data.orders);
       } else {
         throw "Error Fetching Pending Orders";
@@ -44,8 +41,6 @@ const getPendingOrders = async () => {
   }
 
   return pendingOrders;
-
-  // console.log(await getAuthToken("0x" + process.env.PRIVATE_KEY));
 };
 
 exports.cancelOrder = async (orderID) => {
@@ -60,7 +55,6 @@ exports.cancelOrder = async (orderID) => {
         ),
       },
     });
-    // console.log(ret)
     return ret.data;
   } catch (error) {
     console.log("Cancel Order Errored : ", error.message);
@@ -82,12 +76,10 @@ exports.CancelAllPendingOrders = async () => {
       const deleteThis = await this.cancelOrder(pendingOrders[i].id);
 
       if (deleteThis.status === 0) {
-        // console.log("Deleted Order - ", pendingOrders[i].id);
-        console.log("Deleted Order # - ", i);
+        logPrint(`Deleted Order # - ${i}`);
       } else {
         console.log("Some problem in deleting Order ", pendingOrders[i].id);
       }
-      //   console.log(deleteThis);
     }
   } else {
     console.log("Nothing to Delete...");
@@ -101,7 +93,6 @@ exports.getMarketData = async () => {
       url: `${process.env.DEX_API_URL}/markets/${marketID}`,
       timeout: 20000,
     });
-    // console.log(ret)
 
     let res = req.data;
 

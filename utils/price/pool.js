@@ -1,67 +1,57 @@
 require("dotenv").config();
-// const axios = require('axios')
-// const TomoX = require('tomoxjs')
-// const BigNumber = require('bignumber.js')
+const axios = require("axios");
+const BigNumber = require("bignumber.js");
+const { getTokenBalances } = require("../balance");
+const { logPrint } = require("../misc/log");
 
-// var gPrice
-// var gUSDPrice
+var gPrice;
+var gUSDPrice;
 
-// const httpClient = axios.create()
-// httpClient.defaults.timeout = 2500
-
-// let TOKEN_DECIMALS = 1e18
-// let tomox = new TomoX()
-
-const init = async () => {
-  // tomox = new TomoX(process.env.RELAYER_URL, '', process.env.MAIN_PKEY)
-  // let d = (await tomox.getTokenInfo(process.env.QUOTE_TOKEN)).decimals
-  // TOKEN_DECIMALS = 10 ** parseInt(d)
-  // gPrice = process.env.TOKEN_PRICE
-  gPrice = 0;
-};
+const httpClient = axios.create();
+httpClient.defaults.timeout = 5000;
 
 const getLatestPrice = async () => {
-  // try {
-  //     const orderBookData = await tomox.getOrderBook({
-  //         baseToken: process.env.BASE_TOKEN,
-  //         quoteToken: process.env.QUOTE_TOKEN
-  //     })
-  //     let bestAsk = new BigNumber(orderBookData.asks[0].pricepoint)
-  //     let bestBid = new BigNumber(orderBookData.bids[0].pricepoint)
+  try {
+    let baseSymbol = process.env.BASE_SYMBOL.toUpperCase();
+    let quoteSymbol = process.env.QUOTE_SYMBOL.toUpperCase();
 
-  //     let price = bestAsk.plus(bestBid).dividedBy(2)
-  //     gPrice = price.dividedBy(TOKEN_DECIMALS).toFixed(8)
+    // Get Orderbook
+    const orderbookReq = await axios.get(
+      `${process.env.DEX_API_URL}/markets/${baseSymbol}-${quoteSymbol}/orderbook`
+    );
 
-  // } catch (err) {
-  //     console.log('Can not get price from orderbook data')
-  // }
-  // return gPrice'
-  return 0;
+    let orderBookData = orderbookReq.data.data.orderBook;
+
+    let bestAsk =
+      orderBookData.asks.length > 0
+        ? new BigNumber(orderBookData.asks[0][0])
+        : null;
+    let bestBid =
+      orderBookData.bids.length > 0
+        ? new BigNumber(orderBookData.bids[0][0])
+        : null;
+
+    if (orderBookData && bestAsk && bestBid) {
+      logPrint("Got Orderbook");
+      gPrice = new BigNumber(bestAsk).plus(bestBid).dividedBy(2).toNumber();
+    } else {
+      gPrice = await getPriceByBalance();
+    }
+  } catch (err) {
+    console.log("Can not get price from orderbook data");
+    gPrice = await getPriceByBalance();
+  }
+  return gPrice;
 };
 
-const getUSDPrice = async () => {
-  // let baseSymbol = process.env.BASE_SYMBOL
-  // let quoteSymbol = process.env.QUOTE_SYMBOL
-  // try {
-  //     if (baseSymbol != 'USDT' && baseSymbol != 'USD') {
-  //         if (quoteSymbol != 'USDT') {
-  //             let quoteMarket = await tomox.getMarket({
-  //                 baseToken: process.env.BASE_TOKEN,
-  //                 quoteToken: process.env.QUOTE_TOKEN
-  //             })
-  //             gUSDPrice = parseFloat(gPrice) * parseFloat(quoteMarket.closeBaseUsd)
-  //         } else {
-  //             gUSDPrice = gPrice
-  //         }
+const getPriceByBalance = async () => {
+  logPrint("Getting Mid Price By Balance");
+  // Get Balance, if no orderbook
+  const balances = await getTokenBalances();
+  let baseBalance = balances.base;
+  let quoteBalance = balances.quote;
 
-  //     } else {
-  //         gUSDPrice = 1
-  //     }
-  // } catch (err) {
-  //     console.log('Can not get price in USD from orderbook data')
-  // }
-  // return gUSDPrice
-  return 0;
+  return new BigNumber(quoteBalance).dividedBy(baseBalance).toNumber();
 };
 
-module.exports = { init, getLatestPrice, getUSDPrice };
+module.exports = { getLatestPrice };

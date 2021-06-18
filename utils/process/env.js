@@ -26,6 +26,19 @@ exports.getEnvErrors = () => {
   //  if(!process.env.MAX_PRICE) {
   //     return {error:"MAX_PRICE Required"}
   //  }
+
+  if (process.env.MAINTAIN_ARBITRAGE) {
+    if (!process.env.MAX_ARBITRAGE) {
+      return { error: "MAX_ARBITRAGE Required" };
+    }
+    if (
+      Number(process.env.MAX_ARBITRAGE) > 1 ||
+      Number(process.env.MAX_ARBITRAGE) < 0.01
+    ) {
+      return { error: "MAX_ARBITRAGE Invalid, must be between 1 and 0.01" };
+    }
+  }
+
   if (!process.env.ORDER_STEP) {
     return { error: "ORDER_STEP Required" };
   }
@@ -62,6 +75,14 @@ exports.getEnvErrors = () => {
   if (!process.env.PRICE_PROVIDER) {
     return { error: "PRICE_PROVIDER Required" };
   }
+
+  if (
+    process.env.PRICE_PROVIDER === "livecoinwatch" &&
+    !process.env.LIVECOINWATCH_API_KEY
+  ) {
+    return { error: "LIVECOINWATCH_API_KEY Required" };
+  }
+
   if (!process.env.SPEED) {
     return { error: "SPEED Required" };
   }

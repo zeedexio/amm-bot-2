@@ -3,7 +3,6 @@ const {
   initOrderbook,
   maintainOrderbook,
 } = require("../controllers/orderbook");
-const cron = require("node-cron");
 const { sleep } = require("../utils/misc/sleep");
 
 exports.init = async () => {
@@ -12,22 +11,16 @@ exports.init = async () => {
   console.log("--------------------------");
   await CancelAllPendingOrders();
   console.log("--------------------------");
-
   await initOrderbook();
-
-  // let seconds = Number(process.env.SPEED) / 1000;
-  // cron.schedule(`*/${seconds} * * * * *`, async () => {
-  //   await maintainOrderbook();
-  // });
+  console.log("----------------");
   runMaintainer();
 };
 
 const runMaintainer = async () => {
   await sleep(Number(process.env.SPEED));
-
   await maintainOrderbook();
-
   runMaintainer();
+  console.log("----------------");
 };
 
 exports.exit = async (cb) => {

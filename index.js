@@ -1,6 +1,7 @@
 const { getEnvErrors } = require("./utils/process/env");
 const { sleep } = require("./utils/misc/sleep");
 const spot = require("./services/spot");
+const { logPrint } = require("./utils/misc/log");
 
 const startSpotBot = async () => {
   console.log("\nClearing Console...");
