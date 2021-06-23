@@ -267,11 +267,7 @@ const rebuildOrders = async () => {
         // create Order
         console.log("Will Create New Buy Order");
 
-        let currentPrice = asks[i].price;
-        let currentAmount = asks[i].amount;
-        // let result;
-
-        let result = await postTrade(currentPrice, currentAmount, "buy");
+        let result = await postTrade(asks[i].price, asks[i].amount, "buy");
 
         if (result == "success") {
           // sort Bids
@@ -303,11 +299,7 @@ const rebuildOrders = async () => {
         // create Order
         console.log("Will Create New Sell Order");
 
-        let currentPrice = bids[i].price;
-        let currentAmount = bids[i].amount;
-        // let result;
-
-        let result = await postTrade(currentPrice, currentAmount, "sell");
+        let result = await postTrade(bids[i].price, bids[i].amount, "sell");
 
         if (result == "success") {
           // // sort Asks
