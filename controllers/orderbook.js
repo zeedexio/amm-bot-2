@@ -88,6 +88,7 @@ const postTrade = async (price, amount, side) => {
 };
 
 const generateAmountLadder = (balance) => {
+  // console.log("balance = ", balance.toNumber());
   var xs = [];
   let amount = 1;
 

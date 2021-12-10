@@ -34,7 +34,7 @@ exports.getTokenBalances = async () => {
       process.exit(1);
     });
   balances.base = new BigNumber(baseBal).dividedBy(
-    Math.pow(10, marketData.quoteTokenDecimals)
+    Math.pow(10, marketData.baseTokenDecimals)
   );
 
   // Quote TOken
@@ -56,5 +56,7 @@ exports.getTokenBalances = async () => {
     Math.pow(10, marketData.quoteTokenDecimals)
   );
 
+  console.log("Base Balance =", balances.base.toNumber());
+  console.log("Quote Balance =", balances.quote.toNumber());
   return balances;
 };
