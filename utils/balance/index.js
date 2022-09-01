@@ -12,6 +12,7 @@ exports.getTokenBalances = async () => {
     "0x" + process.env.PRIVATE_KEY
   );
   let marketData = await getMarketData();
+  console.log(marketData);
 
   let balances = {
     base: 0,

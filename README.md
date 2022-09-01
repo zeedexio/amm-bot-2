@@ -20,6 +20,8 @@ Automated Market Making (AMM) bots provide liquidity to a marketplace through us
 
 This repository is setup to run naturally on the Zeedex Exchange.
 
+**Note - Make sure, the wallet you are using has approved both tokens on Zeedex already.**
+
 
 Production -
 
@@ -41,50 +43,18 @@ npm run dev
 #### Environment Variables
 
 ```
-PRIVATE_KEY=053kjklajskldnn......             // Private of the main wallet
+PRIVATE_KEY=053kjklajskldnn......             // Private Key of the main wallet
 BASE_SYMBOL=ZDEX                              // Base token symbol
 QUOTE_SYMBOL=USDT                             // Quote token symbol
 DEX_API_URL=https://bsc-api.zeedex.io         // Api url
-MAX_ORDERBOOK_LENGTH=10                       // Orderbook Length Each side | Example - MAX_ORDERBOOK_LENGTH=10 will create 10 buy and 10 sell orders
-ORDER_STEP=0.02                               // Step of orders in per side. Next order = order * (1 +step)
+SPREAD=0.01                                   // Spread between Buy and Sell side
+PRICE_GAP=0.02                                // Price Gap between orders. Next order = order * (1 +step)
 EXPAND_INVENTORY=0.05                         // % increase your order sizes linearly.
+MAX_ORDERBOOK_LENGTH=10                       // Orderbook Length each side
 RPC_URL=                                      // RPC Node URL, eg - infura, etc
 SPEED=10000                                   // Speed (ms) to reload the bot (update price, cancel, create orders)
-MAINTAIN_ARBITRAGE=true                       // Maintain Prices with other markets (Reduce Arbitrage)
-MAX_ARBITRAGE=0.05                            // % difference after which orderbook shifts up/down to decrease arbitrage
-PRICE_PROVIDER=coingecko                      // Maintain prices with which data index
-BASE_NAME=zeedex                              // Coingecko base name
-QUOTE_NAME=tether                             // Coingecko quote name
-LIVECOINWATCH_API_KEY=58a....                 // API Key for LiveCoinWatch
+MANUAL_INIT_PRICE=                            // Initial Price in Quote (USDT in ZDEX-USDT pair) | Example - 0.927
 DEBUG=true                                    // See Logs
-```
-
-
-#### Price Providers
-```
-'pool',                 // auto-adjust pricing by state of the pool (the available orderbook / balance of the tokens in the main wallet )
-'coingecko',            // get price from coingecko, BASE_NAME and QUOTE_NAME required
-'livecoinwatch',        // get price from livecoinwatch, LIVECOINWATCH_API_KEY required
-
-```
-
-#### Bot Flow
-
-```flow
-init=>start: Bot Initialized
-generate=>operation: Generate Ladder
-maintain=>subroutine: Maintain Orderbook
-rebuild=>operation: Rebuild Fullfilled Orders
-cond=>condition: Arbitrage 
-available ?
-shift=>operation: Shift Orderbook
-delay=>subroutine: Delay
-
-
-init(right)->generate->maintain
-maintain->rebuild->cond->shift
-cond(yes)->shift(right)->delay->maintain
-cond(no)->delay->maintain(right)
 ```
 
 
@@ -99,16 +69,14 @@ This bot runs a "constant product market maker model" (popularized in the DeFi c
 - Buying large amounts of the base token will increase the price
 - Selling large amounts of the base token will decrease the price
 
-A typical Constant Market Making model has a continuous price curve. This bot discretizes the continuous price curve and creates a number of limit orders to simulate the curve. The order price is limited between `BOT_MAX_PRICE` and `BOT_MIN_PRICE`. The price difference between adjacent orders is `ORDER_STEP`. (Max Min Prices to be implemented in later releases)
+A typical Constant Market Making model has a continuous price curve. This bot discretizes the continuous price curve and creates a number of limit orders to simulate the curve. The order price is limited between `BOT_MAX_PRICE` and `BOT_MIN_PRICE`. The price difference between adjacent orders is `PRICE_GAP`. 
 
 ![Image](assets/const_product_graph.png)
 ([Image Source](https://medium.com/scalar-capital/uniswap-a-unique-exchange-f4ef44f807bf))
 
 Constant product algorithms have a disadvantage of low inventory utilization. For example, by default it only uses 5% of your inventory when the price increases 10%. `EXPAND_INVENTORY` can help you add depth near the current price.
 
-- `MAX_PRICE` Max order price
-- `MIN_PRICE` Min order price
-- `ORDER_STEP` Price difference rate between adjacent orders. For example, ask price increases by 2% and bid price decreases by 2% if `ORDER_STEP=0.02`.
+- `PRICE_GAP` Price difference rate between adjacent orders. For example, ask price increases by 2% and bid price decreases by 2% if `PRICE_GAP=0.02`.
 - `EXPAND_INVENTORY` Order sizes difference amount between adjacent orders spread linearly. For example, all order sizes will be increased linearly by 5% if `EXPAND_INVENTORY=0.05`.
 
 #### Liquidity Sourcing In Constant Product AMM

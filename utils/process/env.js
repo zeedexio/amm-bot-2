@@ -8,45 +8,21 @@ exports.getEnvErrors = () => {
   if (!process.env.BASE_SYMBOL) {
     return { error: "BASE_SYMBOL Required" };
   }
-  if (!process.env.BASE_NAME) {
-    return { error: "BASE_NAME Required" };
-  }
   if (!process.env.QUOTE_SYMBOL) {
     return { error: "QUOTE_SYMBOL Required" };
-  }
-  if (!process.env.QUOTE_NAME) {
-    return { error: "QUOTE_NAME Required" };
   }
   if (!process.env.DEX_API_URL) {
     return { error: "DEX_API_URL Required" };
   }
-  //  if(!process.env.MIN_PRICE) {
-  //     return {error:"MIN_PRICE Required"}
-  //  }
-  //  if(!process.env.MAX_PRICE) {
-  //     return {error:"MAX_PRICE Required"}
-  //  }
 
-  if (process.env.MAINTAIN_ARBITRAGE) {
-    if (!process.env.MAX_ARBITRAGE) {
-      return { error: "MAX_ARBITRAGE Required" };
-    }
-    if (
-      Number(process.env.MAX_ARBITRAGE) > 1 ||
-      Number(process.env.MAX_ARBITRAGE) < 0.01
-    ) {
-      return { error: "MAX_ARBITRAGE Invalid, must be between 1 and 0.01" };
-    }
-  }
-
-  if (!process.env.ORDER_STEP) {
-    return { error: "ORDER_STEP Required" };
+  if (!process.env.PRICE_GAP) {
+    return { error: "PRICE_GAP Required" };
   }
   if (
-    Number(process.env.ORDER_STEP) > 1 ||
-    Number(process.env.ORDER_STEP) < 0.01
+    Number(process.env.PRICE_GAP) > 1 ||
+    Number(process.env.PRICE_GAP) < 0.01
   ) {
-    return { error: "ORDER_STEP Invalid, must be between 1 and 0.01" };
+    return { error: "PRICE_GAP Invalid, must be between 1 and 0.01" };
   }
 
   if (!process.env.EXPAND_INVENTORY) {
@@ -69,18 +45,15 @@ exports.getEnvErrors = () => {
     return { error: "MAX_ORDERBOOK_LENGTH Invalid, must be between 50 and 1" };
   }
 
-  if (!process.env.RPC_URL) {
-    return { error: "RPC_URL Required" };
-  }
-  if (!process.env.PRICE_PROVIDER) {
-    return { error: "PRICE_PROVIDER Required" };
+  if (
+    process.env.MANUAL_INIT_PRICE &&
+    Number(process.env.MANUAL_INIT_PRICE) <= 0
+  ) {
+    return { error: "MANUAL_INIT_PRICE Invalid, must be more than 0" };
   }
 
-  if (
-    process.env.PRICE_PROVIDER === "livecoinwatch" &&
-    !process.env.LIVECOINWATCH_API_KEY
-  ) {
-    return { error: "LIVECOINWATCH_API_KEY Required" };
+  if (!process.env.RPC_URL) {
+    return { error: "RPC_URL Required" };
   }
 
   if (!process.env.SPEED) {

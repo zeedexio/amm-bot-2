@@ -3,9 +3,10 @@ const BigNumber = require("bignumber.js");
 const { getTokenBalances } = require("../utils/balance");
 const { sleep } = require("../utils/misc/sleep");
 const { logPrint } = require("../utils/misc/log");
-const { getLatestPrice, getUSDPrice } = require("../utils/price")(
-  process.env.PRICE_PROVIDER
-);
+// const { getLatestPrice, getUSDPrice } = require("../utils/price")(
+//   process.env.PRICE_PROVIDER // pool / coingecko/livecoinwatch/uniswap
+// );
+const { getLatestPrice, getUSDPrice } = require("../utils/price")("pool");
 const trade = require("./trade");
 const { getMarketData, getOrder, cancelOrder } = require("./client");
 
@@ -20,7 +21,8 @@ var availableBaseBalance;
 var availableQuoteBalance;
 var midPrice;
 var marketData;
-const step = process.env.ORDER_STEP;
+const spread = process.env.SPREAD;
+const priceGap = process.env.PRICE_GAP;
 const orderBookLength = process.env.MAX_ORDERBOOK_LENGTH;
 const expandInventory = process.env.EXPAND_INVENTORY;
 const marketID = `${process.env.BASE_SYMBOL}-${process.env.QUOTE_SYMBOL}`;
@@ -116,9 +118,20 @@ const generateAmountLadder = (balance) => {
 
 const generatePriceLadder = (remotePrice, side) => {
   var price = remotePrice;
+
   var xs = [];
   for (let i = 0; i < orderBookLength; i++) {
     let thisPrice;
+    let step;
+
+    // spread
+    if (i == 0 && spread) {
+      logPrint("Using Spread");
+      step = new BigNumber(spread).dividedBy(2).toNumber();
+    } else {
+      step = priceGap;
+    }
+
     if (side === "SELL")
       thisPrice = price.multipliedBy(new BigNumber(1).plus(step));
     else thisPrice = price.dividedBy(new BigNumber(1).plus(step));
@@ -175,12 +188,34 @@ exports.initOrderbook = async () => {
 
   // Get Base + Quote Token Balance
   const balances = await getTokenBalances();
+
+  // console.log(balances);
+  // console.log("Base Balance =", balances.base.toNumber());
+  // console.log("Quote Balance =", balances.quote.toNumber());
+
+  if (balances.base.toNumber() == 0) {
+    console.log("Error: Base Balance is 0");
+    process.exit(0);
+  }
+  if (balances.quote.toNumber() == 0) {
+    console.log("Error: Quote Balance is 0");
+    process.exit(0);
+  }
+
   // Will use 95% balance at start
   baseBalance = balances.base.multipliedBy(0.95);
   quoteBalance = balances.quote.multipliedBy(0.95);
 
   // get remote price
-  let remotePrice = new BigNumber(await getLatestPrice());
+  let remotePrice;
+
+  if (process.env.MANUAL_INIT_PRICE) {
+    logPrint("Getting Mid Price By MANUAL_INIT_PRICE");
+    remotePrice = new BigNumber(process.env.MANUAL_INIT_PRICE);
+  } else {
+    remotePrice = new BigNumber(await getLatestPrice());
+  }
+
   if (!remotePrice) return;
   midPrice = remotePrice;
 
@@ -216,36 +251,36 @@ exports.maintainOrderbook = async () => {
   console.log("Maintenance Running");
   await rebuildOrders();
 
-  if (
-    process.env.MAINTAIN_ARBITRAGE == "true" &&
-    process.env.PRICE_PROVIDER !== "pool"
-  ) {
-    logPrint("Lets Check Arbitrage Value...");
-    let remotePrice = new BigNumber(await getLatestPrice());
-    // let remotePrice = new BigNumber(0.053);
+  // if (
+  //   process.env.MAINTAIN_ARBITRAGE == "true" &&
+  //   process.env.PRICE_PROVIDER !== "pool"
+  // ) {
+  //   logPrint("Lets Check Arbitrage Value...");
+  //   let remotePrice = new BigNumber(await getLatestPrice());
+  //   // let remotePrice = new BigNumber(0.053);
 
-    if (!remotePrice) return;
+  //   if (!remotePrice) return;
 
-    let percentChange = new BigNumber(
-      remotePrice.minus(midPrice).dividedBy(remotePrice).multipliedBy(100)
-    ).abs();
+  //   let percentChange = new BigNumber(
+  //     remotePrice.minus(midPrice).dividedBy(remotePrice).multipliedBy(100)
+  //   ).abs();
 
-    console.log(`${percentChange.toNumber().toFixed(2)} % Arbitrage Available`);
+  //   console.log(`${percentChange.toNumber().toFixed(2)} % Arbitrage Available`);
 
-    if (percentChange.isGreaterThan(Number(process.env.MAX_ARBITRAGE) * 100)) {
-      console.log("Will Shift Orderbook to Global Price...");
+  //   if (percentChange.isGreaterThan(Number(process.env.MAX_ARBITRAGE) * 100)) {
+  //     console.log("Will Shift Orderbook to Global Price...");
 
-      if (remotePrice.isGreaterThan(midPrice)) {
-        logPrint("Want to Shift Up the price");
-        await shiftUp(remotePrice);
-      } else {
-        logPrint("Want to Shift Down the price");
-        await shiftDown(remotePrice);
-      }
-    } else {
-      console.log("No Shifting Needed...");
-    }
-  }
+  //     if (remotePrice.isGreaterThan(midPrice)) {
+  //       logPrint("Want to Shift Up the price");
+  //       await shiftUp(remotePrice);
+  //     } else {
+  //       logPrint("Want to Shift Down the price");
+  //       await shiftDown(remotePrice);
+  //     }
+  //   } else {
+  //     console.log("No Shifting Needed...");
+  //   }
+  // }
 };
 
 const rebuildOrders = async () => {
@@ -324,124 +359,124 @@ const rebuildOrders = async () => {
   };
 };
 
-const shiftUp = async (remotePrice) => {
-  let asks = openOrders.asks;
-  let bids = openOrders.bids;
+// const shiftUp = async (remotePrice) => {
+//   let asks = openOrders.asks;
+//   let bids = openOrders.bids;
 
-  for (let i = orderBookLength - 1; i >= 0; i--) {
-    // if CenterPrice === Mid Price -> break;
+//   for (let i = orderBookLength - 1; i >= 0; i--) {
+//     // if CenterPrice === Mid Price -> break;
 
-    let topBidPrice = new BigNumber(bids[0].price).multipliedBy(
-      new BigNumber(1).plus(step)
-    );
+//     let topBidPrice = new BigNumber(bids[0].price).multipliedBy(
+//       new BigNumber(1).plus(priceGap)
+//     );
 
-    if (topBidPrice.isGreaterThan(remotePrice)) {
-      logPrint("Shift Up Break...");
-      break;
-    } else {
-      // Cancel Last -> Create on Top
+//     if (topBidPrice.isGreaterThan(remotePrice)) {
+//       logPrint("Shift Up Break...");
+//       break;
+//     } else {
+//       // Cancel Last -> Create on Top
 
-      // Ask
-      let lastAsk = asks[asks.length - 1];
-      // delete Ask
-      await cancelOrder(lastAsk.orderId);
+//       // Ask
+//       let lastAsk = asks[asks.length - 1];
+//       // delete Ask
+//       await cancelOrder(lastAsk.orderId);
 
-      let topAsk = asks[0];
-      let thisAskPrice = new BigNumber(topAsk.price)
-        .multipliedBy(new BigNumber(1).plus(step))
-        .toFixed(marketData.priceDecimals);
-      let thisAskAmount = topAsk.amount;
-      await postTrade(thisAskPrice, thisAskAmount, "sell");
+//       let topAsk = asks[0];
+//       let thisAskPrice = new BigNumber(topAsk.price)
+//         .multipliedBy(new BigNumber(1).plus(priceGap))
+//         .toFixed(marketData.priceDecimals);
+//       let thisAskAmount = topAsk.amount;
+//       await postTrade(thisAskPrice, thisAskAmount, "sell");
 
-      asks = openOrders.asks; // bid order was pushed in trade
-      asks = asks
-        .filter((a) => a.orderId !== lastAsk.orderId)
-        .sort((a, b) => Number(b.price) - Number(a.price));
+//       asks = openOrders.asks; // bid order was pushed in trade
+//       asks = asks
+//         .filter((a) => a.orderId !== lastAsk.orderId)
+//         .sort((a, b) => Number(b.price) - Number(a.price));
 
-      // Bid
-      let lastBid = bids[bids.length - 1];
-      // delete Bid
-      await cancelOrder(lastBid.orderId);
+//       // Bid
+//       let lastBid = bids[bids.length - 1];
+//       // delete Bid
+//       await cancelOrder(lastBid.orderId);
 
-      let topBid = bids[0];
-      let thisBidPrice = new BigNumber(topBid.price)
-        .multipliedBy(new BigNumber(1).plus(step))
-        .toFixed(marketData.priceDecimals);
-      let thisBidAmount = topBid.amount;
-      await postTrade(thisBidPrice, thisBidAmount, "buy");
+//       let topBid = bids[0];
+//       let thisBidPrice = new BigNumber(topBid.price)
+//         .multipliedBy(new BigNumber(1).plus(priceGap))
+//         .toFixed(marketData.priceDecimals);
+//       let thisBidAmount = topBid.amount;
+//       await postTrade(thisBidPrice, thisBidAmount, "buy");
 
-      bids = openOrders.bids; // bid order was pushed in trade
-      bids = bids
-        .filter((b) => b.orderId !== lastBid.orderId)
-        .sort((a, b) => Number(b.price) - Number(a.price));
-    }
+//       bids = openOrders.bids; // bid order was pushed in trade
+//       bids = bids
+//         .filter((b) => b.orderId !== lastBid.orderId)
+//         .sort((a, b) => Number(b.price) - Number(a.price));
+//     }
 
-    // finally save it
-    openOrders = {
-      asks: asks,
-      bids: bids,
-    };
-  }
-};
+//     // finally save it
+//     openOrders = {
+//       asks: asks,
+//       bids: bids,
+//     };
+//   }
+// };
 
-const shiftDown = async (remotePrice) => {
-  let asks = openOrders.asks;
-  let bids = openOrders.bids;
+// const shiftDown = async (remotePrice) => {
+//   let asks = openOrders.asks;
+//   let bids = openOrders.bids;
 
-  for (let i = 0; i < orderBookLength; i++) {
-    // if CenterPrice === Mid Price -> break;
+//   for (let i = 0; i < orderBookLength; i++) {
+//     // if CenterPrice === Mid Price -> break;
 
-    let lastAskPrice = new BigNumber(asks[asks.length - 1].price).dividedBy(
-      new BigNumber(1).plus(step)
-    );
+//     let lastAskPrice = new BigNumber(asks[asks.length - 1].price).dividedBy(
+//       new BigNumber(1).plus(priceGap)
+//     );
 
-    if (lastAskPrice.isLessThan(remotePrice)) {
-      console.log("Shift Down Break...");
-      break;
-    } else {
-      // Cancel Last -> Create on Top
+//     if (lastAskPrice.isLessThan(remotePrice)) {
+//       console.log("Shift Down Break...");
+//       break;
+//     } else {
+//       // Cancel Last -> Create on Top
 
-      // Bid
-      let topBid = bids[0];
-      // delete Bid
-      await cancelOrder(topBid.orderId);
+//       // Bid
+//       let topBid = bids[0];
+//       // delete Bid
+//       await cancelOrder(topBid.orderId);
 
-      let lastBid = bids[bids.length - 1];
-      let thisBidPrice = new BigNumber(lastBid.price)
-        .dividedBy(new BigNumber(1).plus(step))
-        .toFixed(marketData.priceDecimals);
-      let thisBidAmount = lastBid.amount;
-      await postTrade(thisBidPrice, thisBidAmount, "buy");
+//       let lastBid = bids[bids.length - 1];
+//       let thisBidPrice = new BigNumber(lastBid.price)
+//         .dividedBy(new BigNumber(1).plus(priceGap))
+//         .toFixed(marketData.priceDecimals);
+//       let thisBidAmount = lastBid.amount;
+//       await postTrade(thisBidPrice, thisBidAmount, "buy");
 
-      bids = openOrders.bids; // bid order was pushed in trade
-      bids = bids
-        .filter((b) => b.orderId !== topBid.orderId)
-        .sort((a, b) => Number(b.price) - Number(a.price));
+//       bids = openOrders.bids; // bid order was pushed in trade
+//       bids = bids
+//         .filter((b) => b.orderId !== topBid.orderId)
+//         .sort((a, b) => Number(b.price) - Number(a.price));
 
-      // Ask
-      let topAsk = asks[0];
-      // delete Ask
-      await cancelOrder(topAsk.orderId);
+//       // Ask
+//       let topAsk = asks[0];
+//       // delete Ask
+//       await cancelOrder(topAsk.orderId);
 
-      let lastAsk = asks[asks.length - 1];
-      let thisAskPrice = new BigNumber(lastAsk.price)
-        .dividedBy(new BigNumber(1).plus(step))
-        .toFixed(marketData.priceDecimals);
-      let thisAskAmount = lastAsk.amount;
-      await postTrade(thisAskPrice, thisAskAmount, "sell");
+//       let lastAsk = asks[asks.length - 1];
+//       let thisAskPrice = new BigNumber(lastAsk.price)
+//         .dividedBy(new BigNumber(1).plus(priceGap))
+//         .toFixed(marketData.priceDecimals);
+//       let thisAskAmount = lastAsk.amount;
+//       await postTrade(thisAskPrice, thisAskAmount, "sell");
 
-      asks = openOrders.asks; // bid order was pushed in trade
-      asks = asks
-        .filter((a) => a.orderId !== topAsk.orderId)
-        .sort((a, b) => Number(b.price) - Number(a.price));
-    }
+//       asks = openOrders.asks; // bid order was pushed in trade
+//       asks = asks
+//         .filter((a) => a.orderId !== topAsk.orderId)
+//         .sort((a, b) => Number(b.price) - Number(a.price));
+//     }
 
-    // finally save it
-    openOrders = {
-      asks: asks,
-      bids: bids,
-    };
-  }
+//     // finally save it
+//     openOrders = {
+//       asks: asks,
+//       bids: bids,
+//     };
+//   }
 
-  midPrice = remotePrice;
-};
+//   midPrice = remotePrice;
+// };

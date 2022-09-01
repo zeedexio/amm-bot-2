@@ -8,7 +8,7 @@ var gPrice;
 var gUSDPrice;
 
 const httpClient = axios.create();
-httpClient.defaults.timeout = 5000;
+httpClient.defaults.timeout = 10000;
 
 const getLatestPrice = async () => {
   try {
